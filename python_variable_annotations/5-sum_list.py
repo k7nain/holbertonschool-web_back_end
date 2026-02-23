@@ -2,7 +2,7 @@
 """Module that contains function sum"""
 
 
-def sum_list(floats: list[float]) -> float:
+def sum_list(input_list: list[float]) -> float:
 
     """Returns the one list"""
-    return sum(floats)
+    return sum(input_list)
