@@ -6,7 +6,6 @@ from flask_babel import Babel, _
 
 
 class Config:
-    """Config class for Babel"""
     LANGUAGES = ["en", "fr"]
     BABEL_DEFAULT_LOCALE = "en"
     BABEL_DEFAULT_TIMEZONE = "UTC"
@@ -19,12 +18,11 @@ babel = Babel()
 
 
 def get_locale():
-    """Select best language"""
+    """Select the best match language"""
     return request.accept_languages.best_match(app.config['LANGUAGES'])
 
 
-
-babel.init_app(app, locale_selector = get_locale)
+babel.init_app(app, locale_selector=get_locale)
 
 
 @app.route('/')
