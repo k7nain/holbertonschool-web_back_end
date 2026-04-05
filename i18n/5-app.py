@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""
-Flask i18n app
-"""
 from flask import Flask, render_template, request, g
-from flask_babel import Babel
+from flask_babel import Babel, _
 
-
+# -------------------------
+# Mock user table
+# -------------------------
 users = {
     1: {"name": "Balou", "locale": "fr", "timezone": "Europe/Paris"},
     2: {"name": "Beyonce", "locale": "en", "timezone": "US/Central"},
@@ -13,51 +12,70 @@ users = {
     4: {"name": "Teletubby", "locale": None, "timezone": "Europe/London"},
 }
 
+# -------------------------
+# Flask app & Babel config
+# -------------------------
 
-class Config(object):
-    """Babel config"""
+
+class Config:
     LANGUAGES = ["en", "fr"]
     BABEL_DEFAULT_LOCALE = "en"
     BABEL_DEFAULT_TIMEZONE = "UTC"
-    BABEL_TRANSLATION_DIRECTORIES = "translations"
 
 
 app = Flask(__name__)
 app.config.from_object(Config)
+babel = Babel(app)
+
+# -------------------------
+# Helper functions
+# -------------------------
 
 
 def get_user():
-    """Returns a user dictionary or None"""
-    user_id = request.args.get("login_as")
-    if user_id is None:
-        return None
+    """Return user dict or None if login_as invalid or not provided"""
     try:
-        return users.get(int(user_id))
+        user_id = int(request.args.get('login_as', 0))
+        return users.get(user_id)
     except (ValueError, TypeError):
         return None
 
 
 @app.before_request
 def before_request():
-    """Find user if any and set it on g.user"""
+    """Executed before every request to set g.user"""
     g.user = get_user()
 
 
+@babel.localeselector
 def get_locale():
-    """Select a language translation to use"""
-    locale = request.args.get("locale")
-    if locale in app.config["LANGUAGES"]:
-        return locale
-    return request.accept_languages.best_match(app.config["LANGUAGES"])
+    """Determine the best locale to use"""
+    # 1️⃣ URL parameter has highest priority
+    locale_param = request.args.get('locale')
+    if locale_param in app.config['LANGUAGES']:
+        return locale_param
+
+    # 2️⃣ User locale if valid
+    if g.get('user'):
+        user_locale = g.user.get('locale')
+        if user_locale in app.config['LANGUAGES']:
+            return user_locale
+
+    # 3️⃣ Fallback to Accept-Language header or default
+    return request.accept_languages.best_match(app.config['LANGUAGES']) or 'en'
+
+# -------------------------
+# Routes
+# -------------------------
 
 
-babel = Babel(app, locale_selector=get_locale)
-
-
-@app.route("/")
+@app.route('/')
 def index():
-    """Render index"""
-    return render_template("5-index.html")
+    return render_template('index.html')
+
+# -------------------------
+# Run server
+# -------------------------
 
 
 if __name__ == "__main__":
