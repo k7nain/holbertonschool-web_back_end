@@ -14,8 +14,6 @@ class Config:
 app = Flask(__name__)
 app.config.from_object(Config)
 
-babel = Babel(app)
-
 # Saxta istifadəçi bazası (Mock database)
 users = {
     1: {"name": "Balou", "locale": "fr", "timezone": "Europe/Paris"},
@@ -30,7 +28,6 @@ def get_user():
     login_id = request.args.get('login_as')
     if login_id:
         try:
-            # URL-dən gələn ID string (mətn) olduğu üçün int-ə çeviririk
             return users.get(int(login_id))
         except ValueError:
             return None
@@ -40,18 +37,23 @@ def get_user():
 
 @app.before_request
 def before_request():
+
     """Find a user and set it as a global on flask.g.user"""
     g.user = get_user()
 
 
-@babel.localeselector
+# Dekorator silinib və sadə funksiya kimi saxlanılıb
 def get_locale():
-
     """Select the best match language or force locale from URL"""
     locale = request.args.get('locale')
     if locale and locale in app.config['LANGUAGES']:
         return locale
+
     return request.accept_languages.best_match(app.config['LANGUAGES'])
+
+
+# Babel inisializasiyası (get_locale təyin edildikdən sonra yazılmalıdır)
+babel = Babel(app, locale_selector=get_locale)
 
 
 @app.route('/', strict_slashes=False)
