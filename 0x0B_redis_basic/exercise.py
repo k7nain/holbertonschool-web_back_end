@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cache module with Redis counters
+Cache module with Redis call history
 """
 import redis
 import uuid
@@ -8,17 +8,24 @@ from typing import Union, Callable, Optional
 from functools import wraps
 
 
-def count_calls(method: Callable) -> Callable:
-    """Decorator that counts how many times a method is called."""
-    key = method.__qualname__
+def call_history(method: Callable) -> Callable:
+    """Stores input/output history of a function in Redis."""
+
+    inputs_key = f"{method.__qualname__}:inputs"
+    outputs_key = f"{method.__qualname__}:outputs"
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        # increment call count in Redis
-        self._redis.incr(key)
+        # store input arguments
+        self._redis.rpush(inputs_key, str(args))
 
-        # execute original method
-        return method(self, *args, **kwargs)
+        # call original function
+        result = method(self, *args, **kwargs)
+
+        # store output
+        self._redis.rpush(outputs_key, result)
+
+        return result
 
     return wrapper
 
@@ -28,7 +35,7 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb()
 
-    @count_calls
+    @call_history
     def store(self, data: Union[str, bytes, int, float]) -> str:
         key = str(uuid.uuid4())
         self._redis.set(key, data)
