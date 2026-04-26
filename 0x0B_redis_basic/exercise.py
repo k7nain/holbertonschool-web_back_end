@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cache module with Redis call history
+Cache module with replay function
 """
 import redis
 import uuid
@@ -16,13 +16,10 @@ def call_history(method: Callable) -> Callable:
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        # store input arguments
         self._redis.rpush(inputs_key, str(args))
 
-        # call original function
         result = method(self, *args, **kwargs)
 
-        # store output
         self._redis.rpush(outputs_key, result)
 
         return result
@@ -47,13 +44,29 @@ class Cache:
         if value is None:
             return None
 
-        if fn:
-            return fn(value)
-
-        return value
+        return fn(value) if fn else value
 
     def get_str(self, key: str) -> str:
         return self.get(key, fn=lambda d: d.decode("utf-8"))
 
     def get_int(self, key: str) -> int:
         return self.get(key, fn=int)
+
+
+def replay(method: Callable):
+    """Display the history of calls of a function."""
+
+    redis_client = redis.Redis()
+
+    inputs_key = f"{method.__qualname__}:inputs"
+    outputs_key = f"{method.__qualname__}:outputs"
+
+    inputs = redis_client.lrange(inputs_key, 0, -1)
+    outputs = redis_client.lrange(outputs_key, 0, -1)
+
+    count = len(inputs)
+
+    print(f"{method.__qualname__} was called {count} times:")
+
+    for inp, out in zip(inputs, outputs):
+        print(f"{method.__qualname__}(*{inp.decode('utf-8')}) -> {out.decode('utf-8')}")
